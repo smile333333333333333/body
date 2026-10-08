@@ -1,0 +1,218 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>LAST LIMBS</title>
+<style>
+body{margin:0;background:#10151b;color:#eee;font:15px Arial;text-align:center}
+h2{letter-spacing:3px}
+canvas{width:96%;max-width:850px;background:#242d35;border:2px solid #71808b;touch-action:none}
+button{padding:12px;margin:4px;background:#344651;color:white;border:1px solid #9baab2;border-radius:7px;font-weight:bold}
+#msg{color:#ffd887;min-height:35px;padding:10px}
+</style>
+</head>
+<body>
+<h2>LAST LIMBS</h2>
+<div id="stats"></div>
+<canvas id="c" width="850" height="480"></canvas>
+<div id="msg">Protect the body. Defeat the boss to replace a lost limb.</div>
+<div>
+<button onclick="keys.l=true">◀</button>
+<button onclick="keys.l=false">STOP</button>
+<button onclick="keys.r=true">▶</button>
+<button onclick="dodge()">DODGE</button>
+</div>
+<div>
+<button onclick="attack()">ATTACK</button>
+<button onclick="guard()">GUARD BODY</button>
+<button onclick="heal()">HEAL</button>
+<button onclick="reset()">RESTART</button>
+</div>
+<div id="upgrades"></div>
+<script>
+const c=document.querySelector("#c"),g=c.getContext("2d");
+let p,b,foes,boss,stage,keys,guarding,over,limbs,parts;
+function say(s){document.querySelector("#msg").textContent=s}
+function reset(){
+p={x:100,y:365,h:100};b={x:405,y:275,h:100};
+stage=1;keys={l:false,r:false};guarding=0;over=false;
+limbs={arm:true,leg:true,eye:true};parts=[];document.querySelector("#upgrades").innerHTML="";
+wave();say("Protect the body! Your limbs have special powers.");draw();
+}
+function wave(){
+foes=[];boss=null;
+if(stage<4){
+for(let i=0;i<stage+2;i++)foes.push({
+x:590+(i%2)*90,y:90+Math.floor(i/2)*75,
+h:30+stage*10,max:30+stage*10,r:19,cd:60,s:.45+stage*.1
+});
+}else boss={x:680,y:150,h:180,max:180,r:48,cd:55};
+}
+function nearest(){
+let a=foes.slice();if(boss)a.push(boss);
+return a.sort((u,v)=>Math.hypot(u.x-p.x,u.y-p.y)-Math.hypot(v.x-p.x,v.y-p.y))[0];
+}
+function attack(){
+if(over)return;
+let e=nearest();if(!e)return say("No enemies left!");
+if(Math.hypot(e.x-p.x,e.y-p.y)>350)return say("Move closer!");
+let damage=limbs.arm?18:7;
+if(limbs.eye)damage+=4;
+e.h-=damage;
+parts.push({x:p.x,y:p.y,tx:e.x,ty:e.y,t:10});
+say("Hit for "+damage+" damage!");
+if(e.h<=0){
+if(e===boss)boss=null;else foes=foes.filter(q=>q!==e);
+if(!foes.length&&!boss){
+if(stage<4){stage++;wave();say("Wave cleared! Stage "+stage);}
+else victory();
+}
+}
+}
+function victory(){
+over=true;say("BOSS DEFEATED! Replace a lost limb.");
+let box=document.querySelector("#upgrades");box.innerHTML="<p>Choose a replacement:</p>";
+for(let n of ["arm","leg","eye"]){
+if(!limbs[n]){
+let btn=document.createElement("button");btn.textContent="REPLACE "+n.toUpperCase();
+btn.onclick=()=>{limbs[n]=true;box.innerHTML="";say(n.toUpperCase()+" restored! You won!");draw()};
+box.appendChild(btn);
+}
+}
+if(Object.values(limbs).every(Boolean))box.innerHTML="All limbs survived! You won!";
+}
+function guard(){guarding=150;say("GUARD ACTIVE: body takes reduced damage.")}
+function heal(){if(!over){p.h=Math.min(100,p.h+15);say("Recovered 15 health.")}}
+function dodge(){p.x=Math.max(25,Math.min(825,p.x+(p.x<425?65:-65)))}
+function hurt(n){b.h=Math.max(0,b.h-Math.ceil(guarding?n*.35:n));if(!b.h){over=true;say("THE BODY WAS LOST! Restart to try again.")}}
+function bar(x,y,w,h,v,max,color){
+g.fillStyle="#10151b";g.fillRect(x-1,y-1,w+2,h+2);
+g.fillStyle="#d65d5d";g.fillRect(x,y,w,h);
+g.fillStyle=color;g.fillRect(x,y,w*Math.max(0,v/max),h);
+}
+function text(t,x,y,size=13,color="#fff"){
+g.fillStyle=color;g.font="bold "+size+"px Arial";g.textAlign="center";g.fillText(t,x,y);g.textAlign="left";
+}
+function draw(){
+g.clearRect(0,0,850,480);
+g.fillStyle="#222b32";g.fillRect(0,0,850,480);
+// floor tiles
+for(let y=30;y<480;y+=40)for(let x=0;x<850;x+=40){
+g.strokeStyle="#303b43";g.strokeRect(x,y,40,40);
+}
+// pipes and lamps
+g.fillStyle="#151b21";g.fillRect(0,30,850,25);g.fillRect(20,55,12,120);
+for(let x=100;x<850;x+=180){
+g.fillStyle="#d6b65b";g.beginPath();g.arc(x,43,5,0,7);g.fill();
+}
+// laboratory tanks
+g.fillStyle="#36464c";g.fillRect(25,100,65,125);g.fillRect(760,65,55,145);
+g.strokeStyle="#76939a";g.lineWidth=3;g.strokeRect(25,100,65,125);g.strokeRect(760,65,55,145);
+g.fillStyle="#638b7a";g.fillRect(31,160,53,59);g.fillRect(766,140,43,64);
+// body platform
+g.fillStyle="#59646b";g.fillRect(315,330,180,30);
+g.fillStyle="#85939b";g.fillRect(330,360,150,18);
+// body shadow
+g.fillStyle="#161b20";g.beginPath();g.ellipse(b.x,b.y+56,78,22,0,0,7);g.fill();
+// body legs
+g.lineCap="round";g.lineWidth=21;
+g.strokeStyle=limbs.leg?"#c9b69a":"#623d40";
+g.beginPath();g.moveTo(b.x-19,b.y+35);g.lineTo(b.x-30,b.y+72);
+g.moveTo(b.x+19,b.y+35);g.lineTo(b.x+30,b.y+72);g.stroke();
+// body torso
+g.fillStyle="#b4a38b";g.strokeStyle="#e4d3b7";g.lineWidth=3;
+g.beginPath();g.ellipse(b.x,b.y+8,43,49,0,0,7);g.fill();g.stroke();
+// neck and head
+g.fillStyle="#c9b69a";g.fillRect(b.x-12,b.y-35,24,22);
+g.beginPath();g.ellipse(b.x,b.y-51,28,30,0,0,7);g.fill();g.stroke();
+// ears
+g.beginPath();g.arc(b.x-27,b.y-51,7,0,7);g.arc(b.x+27,b.y-51,7,0,7);g.fill();
+// eyes
+g.fillStyle="#262729";g.beginPath();g.ellipse(b.x-10,b.y-54,4,7,0,0,7);g.ellipse(b.x+10,b.y-54,4,7,0,0,7);g.fill();
+// nose and mouth
+g.fillStyle="#8e7966";g.beginPath();g.moveTo(b.x,b.y-49);g.lineTo(b.x-4,b.y-40);g.lineTo(b.x+4,b.y-40);g.fill();
+g.strokeStyle="#54433c";g.lineWidth=2;g.beginPath();g.moveTo(b.x-8,b.y-33);g.lineTo(b.x+8,b.y-33);g.stroke();
+// arms
+g.lineWidth=17;g.strokeStyle=limbs.arm?"#c9b69a":"#623d40";
+g.beginPath();g.moveTo(b.x-35,b.y-7);g.lineTo(b.x-60,b.y+25);
+g.moveTo(b.x+35,b.y-7);g.lineTo(b.x+60,b.y+25);g.stroke();
+text("BODY TO PROTECT",b.x,b.y-91,15,"#ffe4ae");
+bar(b.x-60,b.y-84,120,8,b.h,100,"#6ce5a0");
+// player shadow and legs
+g.fillStyle="#171b20";g.beginPath();g.ellipse(p.x,p.y+20,24,8,0,0,7);g.fill();
+g.strokeStyle="#b8a17d";g.lineWidth=7;g.beginPath();
+g.moveTo(p.x-7,p.y+10);g.lineTo(p.x-10,p.y+22);
+g.moveTo(p.x+7,p.y+10);g.lineTo(p.x+10,p.y+22);g.stroke();
+// player body and head
+g.fillStyle="#d18a43";g.fillRect(p.x-12,p.y-8,24,22);
+g.fillStyle="#e5c19a";g.beginPath();g.arc(p.x,p.y-17,11,0,7);g.fill();
+g.fillStyle="#3c2b23";g.beginPath();g.arc(p.x,p.y-21,12,Math.PI,7);g.fill();
+// arms
+g.strokeStyle="#e5c19a";g.lineWidth=6;g.beginPath();
+g.moveTo(p.x-10,p.y-3);g.lineTo(p.x-20,p.y+8);
+g.moveTo(p.x+10,p.y-3);g.lineTo(p.x+20,p.y+8);g.stroke();
+text("YOU",p.x,p.y-36,13,"#ffc36c");bar(p.x-23,p.y+27,46,5,p.h,100,"#f2ad56");
+if(guarding){g.strokeStyle="#65dfff";g.lineWidth=4;g.beginPath();g.arc(p.x,p.y,33,0,7);g.stroke()}
+// monsters
+foes.forEach(e=>monster(e,false));if(boss)monster(boss,true);
+parts=parts.filter(q=>q.t-->0);
+parts.forEach(q=>{g.strokeStyle="#fff4a0";g.lineWidth=4;g.beginPath();g.moveTo(q.x,q.y);g.lineTo(q.tx,q.ty);g.stroke()});
+text("ARM: "+(limbs.arm?"STRONG ATTACK":"LOST"),100,455,12,limbs.arm?"#ffc36c":"#ef7777");
+text("LEG: "+(limbs.leg?"FAST MOVE":"LOST"),400,455,12,limbs.leg?"#ffc36c":"#ef7777");
+text("EYE: "+(limbs.eye?"BONUS DAMAGE":"LOST"),700,455,12,limbs.eye?"#ffc36c":"#ef7777");
+document.querySelector("#stats").textContent=`STAGE ${stage}/4 | BODY ${b.h}/100 | YOU ${p.h}/100`;
+}
+function monster(e,isBoss){
+g.save();g.translate(e.x,e.y);
+let r=e.r;
+g.fillStyle=isBoss?"#77285f":"#a94143";g.strokeStyle=isBoss?"#f17bd0":"#e78b83";g.lineWidth=3;
+// tentacles / spikes
+for(let i=0;i<7;i++){
+let a=i*Math.PI/3.5;
+g.beginPath();g.moveTo(Math.cos(a)*r*.55,Math.sin(a)*r*.55);
+g.lineTo(Math.cos(a)*(r+10),Math.sin(a)*(r+10));g.stroke();
+}
+g.beginPath();g.ellipse(0,0,r,r*.8,0,0,7);g.fill();g.stroke();
+// eyes
+g.fillStyle="#fff";g.beginPath();g.arc(-r*.3,-5,6,0,7);g.arc(r*.3,-5,6,0,7);g.fill();
+g.fillStyle="#1b1019";g.beginPath();g.arc(-r*.3,-5,3,0,7);g.arc(r*.3,-5,3,0,7);g.fill();
+// mouth
+g.fillStyle="#24121f";g.beginPath();g.ellipse(0,r*.28,r*.35,r*.22,0,0,7);g.fill();
+g.restore();
+bar(e.x-r,e.y-r-13,r*2,6,e.h,e.max,isBoss?"#f078db":"#f17868");
+text(isBoss?"BOSS":"ENEMY",e.x,e.y-r-19,12);
+}
+function tick(){
+if(!over){
+if(keys.l)p.x=Math.max(20,p.x-(limbs.leg?4:2));
+if(keys.r)p.x=Math.min(830,p.x+(limbs.leg?4:2));
+if(guarding)guarding--;
+foes.forEach(e=>{
+let dx=b.x-e.x,dy=b.y-e.y,d=Math.hypot(dx,dy)||1;
+if(d>b.r+e.r)e.x+=dx/d*e.s,e.y+=dy/d*e.s;
+else if(e.cd--<=0){hurt(5+stage);e.cd=65}
+});
+if(boss){
+let dx=b.x-boss.x,dy=b.y-boss.y,d=Math.hypot(dx,dy)||1;
+if(d>b.r+boss.r)boss.x+=dx/d*.5,boss.y+=dy/d*.5;
+else if(boss.cd--<=0){hurt(12);boss.cd=55}
+}
+}
+draw();requestAnimationFrame(tick);
+}
+window.addEventListener("keydown",e=>{
+if(e.key==="ArrowLeft"||e.key.toLowerCase()==="a")keys.l=true;
+if(e.key==="ArrowRight"||e.key.toLowerCase()==="d")keys.r=true;
+if(e.key==="Enter")attack();if(e.key===" ")guard();
+if(e.key==="ArrowUp"||e.key.toLowerCase()==="w")dodge();
+});
+window.addEventListener("keyup",e=>{
+if(e.key==="ArrowLeft"||e.key.toLowerCase()==="a")keys.l=false;
+if(e.key==="ArrowRight"||e.key.toLowerCase()==="d")keys.r=false;
+});
+reset();tick();
+</script>
+</body>
+</html>
